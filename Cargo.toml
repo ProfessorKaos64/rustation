@@ -1,6 +1,7 @@
 [package]
 
 name = "rustation"
+# Exported as VERSION and VERSION_CSTR in the library
 version = "0.0.1"
 authors = ["Lionel Flandrin <lionel.flandrin@gmail.com>"]
 
