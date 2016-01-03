@@ -1,14 +1,13 @@
-pub mod bios;
 pub mod interrupts;
 pub mod timers;
 mod ram;
 mod dma;
 
-use self::bios::Bios;
 use self::ram::{Ram, ScratchPad};
 use self::dma::{Dma, Port, Direction, Step, Sync};
 use self::timers::Timers;
 use self::interrupts::InterruptState;
+use bios::Bios;
 use timekeeper::{TimeKeeper, Peripheral};
 use gpu::Gpu;
 use spu::Spu;

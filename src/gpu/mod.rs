@@ -1,15 +1,12 @@
-use self::opengl::{Renderer, CommandVertex, LoadBuffer};
 use memory::Addressable;
 use memory::interrupts::{Interrupt, InterruptState};
 use memory::timers::Timers;
 use timekeeper::{TimeKeeper, Peripheral, Cycles, FracCycles};
 use HardwareType;
 
-pub mod opengl;
-
 pub struct Gpu {
     /// OpenGL renderer
-    renderer: Renderer,
+    //renderer: Renderer,
     /// Draw mode for rectangles, dithering enable and a few other
     /// things
     draw_mode: u16,
@@ -100,18 +97,15 @@ pub struct Gpu {
     /// When drawing polylines we must keep track of the previous
     /// vertex position and color
     polyline_prev: ([i16; 2], [u8; 3]),
-    /// Buffer holding the textures when they are being loaded through
-    /// GP0
-    load_buffer: LoadBuffer,
 }
 
 impl Gpu {
-    pub fn new(renderer: opengl::Renderer, hardware: HardwareType) -> Gpu {
+    pub fn new(hardware: HardwareType) -> Gpu {
         let dummy_gp0 =
             Gp0Attributes::new(Gpu::gp0_nop, false, BlendMode::None, false);
 
         Gpu {
-            renderer: renderer,
+            //renderer: renderer,
             draw_mode: 0,
             texture_window_x_mask: 0,
             texture_window_y_mask: 0,
@@ -153,7 +147,7 @@ impl Gpu {
             hardware: hardware,
             read_word: 0,
             polyline_prev: ([0; 2], [0; 3]),
-            load_buffer: LoadBuffer::null(),
+            //load_buffer: LoadBuffer::null(),
         }
     }
 
@@ -357,11 +351,11 @@ impl Gpu {
     /// Called when we want to display a new frame. Refreshes the
     /// video output.
     fn display(&mut self) {
-        self.renderer.display(self.display_vram_x_start,
-                              self.display_vram_y_start,
-                              self.hres.width(),
-                              self.vres.height(),
-                              self.display_depth);
+        // self.renderer.display(self.display_vram_x_start,
+        //                       self.display_vram_y_start,
+        //                       self.hres.width(),
+        //                       self.vres.height(),
+        //                       self.display_depth);
     }
 
     /// Return true if we're currently in the video blanking period
@@ -529,19 +523,19 @@ impl Gpu {
 
     /// GP0 handler method: handle image load
     fn gp0_handle_image_load(&mut self, word: u32) {
-        self.load_buffer.push_word(word);
+        //self.load_buffer.push_word(word);
 
         self.gp0_words_remaining -= 1;
 
         if self.gp0_words_remaining == 0 {
-            let mut load_buffer = LoadBuffer::null();
+            //let mut load_buffer = LoadBuffer::null();
 
             // We are going to consume the LoadBuffer, we need to move
             // out of `self`
-            ::std::mem::swap(&mut self.load_buffer,
-                             &mut load_buffer);
+            // ::std::mem::swap(&mut self.load_buffer,
+            //                  &mut load_buffer);
 
-            self.renderer.load_image(load_buffer);
+            //self.renderer.load_image(load_buffer);
 
             // We're done, wait for the next command
             self.gp0_handler = Gpu::gp0_handle_command;
@@ -580,7 +574,7 @@ impl Gpu {
             self.gp0_attributes.vertex(end_pos, end_color),
             ];
 
-        self.renderer.push_line(&vertices);
+        //self.renderer.push_line(&vertices);
 
         // Store the new ending position for the next segment (if any)
         self.polyline_prev = (end_pos, end_color);
@@ -607,7 +601,7 @@ impl Gpu {
             self.gp0_attributes.vertex(end_pos, color),
             ];
 
-        self.renderer.push_line(&vertices);
+        //self.renderer.push_line(&vertices);
 
         // Store the new ending position for the next segment (if any)
         self.polyline_prev = (end_pos, color);
@@ -760,9 +754,9 @@ impl Gpu {
             bottom = 0x200;
         }
 
-        self.renderer.fill_rect(color,
-                                top, left,
-                                bottom, right);
+        // self.renderer.fill_rect(color,
+        //                         top, left,
+        //                         bottom, right);
     }
 
     /// Gp0(0x80): Copy rectangle
@@ -789,7 +783,7 @@ impl Gpu {
                                        color),
             ];
 
-        self.renderer.push_triangle(&vertices);
+        //self.renderer.push_triangle(&vertices);
     }
 
     /// Draw an untextured unshaded quad
@@ -807,7 +801,7 @@ impl Gpu {
                                        color),
             ];
 
-        self.renderer.push_quad(&vertices);
+        //self.renderer.push_quad(&vertices);
     }
 
     /// Draw a monochrome line
@@ -819,7 +813,7 @@ impl Gpu {
                                        gp0_color(self.gp0_command[0])),
             ];
 
-        self.renderer.push_line(&vertices);
+        //self.renderer.push_line(&vertices);
     }
 
     /// Draw a monochrome polyline
@@ -837,7 +831,7 @@ impl Gpu {
             self.gp0_attributes.vertex(end_pos, color),
             ];
 
-        self.renderer.push_line(&vertices);
+        //self.renderer.push_line(&vertices);
 
         // Store the end point to continue the polyline when we get
         // the next vertex
@@ -869,7 +863,7 @@ impl Gpu {
                 gp0_texture_coordinates(self.gp0_command[6])),
             ];
 
-        self.renderer.push_triangle(&vertices);
+        //self.renderer.push_triangle(&vertices);
     }
 
     /// Draw a textured unshaded quad
@@ -898,7 +892,7 @@ impl Gpu {
                 gp0_texture_coordinates(self.gp0_command[8])),
             ];
 
-        self.renderer.push_quad(&vertices);
+        //self.renderer.push_quad(&vertices);
     }
 
     /// Draw an untextured shaded triangle
@@ -912,7 +906,7 @@ impl Gpu {
                                        gp0_color(self.gp0_command[4])),
             ];
 
-        self.renderer.push_triangle(&vertices);
+        //self.renderer.push_triangle(&vertices);
     }
 
     /// Draw an untextured shaded quad
@@ -928,7 +922,7 @@ impl Gpu {
                                        gp0_color(self.gp0_command[6])),
             ];
 
-        self.renderer.push_quad(&vertices);
+        //self.renderer.push_quad(&vertices);
     }
 
     /// Draw a shaded line
@@ -940,7 +934,7 @@ impl Gpu {
                                        gp0_color(self.gp0_command[2])),
             ];
 
-        self.renderer.push_line(&vertices);
+        //self.renderer.push_line(&vertices);
     }
 
     /// Draw a shaded polyline
@@ -962,7 +956,7 @@ impl Gpu {
             self.gp0_attributes.vertex(end_pos, end_color),
             ];
 
-        self.renderer.push_line(&vertices);
+        //self.renderer.push_line(&vertices);
 
         // Store the end point to continue the polyline when we get
         // the next vertex
@@ -992,7 +986,7 @@ impl Gpu {
                 gp0_texture_coordinates(self.gp0_command[8])),
             ];
 
-        self.renderer.push_triangle(&vertices);
+        //self.renderer.push_triangle(&vertices);
     }
 
     /// Draw a textured shaded quad
@@ -1020,7 +1014,7 @@ impl Gpu {
                 gp0_texture_coordinates(self.gp0_command[11])),
             ];
 
-        self.renderer.push_quad(&vertices);
+        //self.renderer.push_quad(&vertices);
     }
 
 
@@ -1043,7 +1037,7 @@ impl Gpu {
                                        color),
         ];
 
-        self.renderer.push_quad(&vertices);
+        //self.renderer.push_quad(&vertices);
     }
 
     fn gp0_rect_sized_textured(&mut self, width: i16, height: i16) {
@@ -1083,7 +1077,7 @@ impl Gpu {
                  tex_top_left[1] + height as u16]),
         ];
 
-        self.renderer.push_quad(&vertices);
+        //self.renderer.push_quad(&vertices);
     }
 
     /// Draw a textured rectangle
@@ -1148,8 +1142,8 @@ impl Gpu {
         self.gp0_words_remaining = imgsize / 2;
 
         if self.gp0_words_remaining > 0 {
-            self.load_buffer = LoadBuffer::new(x, y,
-                                               width as u16, height as u16);
+            // self.load_buffer = LoadBuffer::new(x, y,
+            //                                    width as u16, height as u16);
 
             // Use a custom GP0 handler to handle the GP0 image load
             self.gp0_handler = Gpu::gp0_handle_image_load;
@@ -1207,10 +1201,10 @@ impl Gpu {
 
     // Called when the drawing area changes to notify the renderer
     fn update_drawing_area(&mut self) {
-        self.renderer.set_drawing_area(self.drawing_area_left,
-                                       self.drawing_area_top,
-                                       self.drawing_area_right,
-                                       self.drawing_area_bottom);
+        //self.renderer.set_drawing_area(self.drawing_area_left,
+                                       //self.drawing_area_top,
+                                       //self.drawing_area_right,
+                                       //self.drawing_area_bottom);
     }
 
     /// GP0(0xE5): Set Drawing Offset
@@ -1226,7 +1220,7 @@ impl Gpu {
         let y = ((y << 5) as i16) >> 5;
 
         self.drawing_offset = (x, y);
-        self.renderer.set_draw_offset(x, y);
+        //self.renderer.set_draw_offset(x, y);
     }
 
     /// GP0(0xE6): Set Mask Bit Setting
@@ -1304,7 +1298,7 @@ impl Gpu {
         self.display_line = 0;
         self.display_line_tick = 0;
 
-        self.renderer.set_draw_offset(0, 0);
+        //self.renderer.set_draw_offset(0, 0);
 
         self.gp1_reset_command_buffer();
         self.gp1_acknowledge_irq();
@@ -1797,3 +1791,63 @@ fn is_polyline_end_marker(val: u32) -> bool {
 const VRAM_WIDTH_PIXELS: u16 = 1024;
 // Height of the VRAM in lines
 const VRAM_HEIGHT: u16 = 512;
+
+
+/// Vertex definition used by the draw commands
+#[derive(Copy,Clone,Debug)]
+pub struct CommandVertex {
+    /// Position in PlayStation VRAM coordinates
+    position: [i16; 2],
+    /// RGB color, 8bits per component
+    color: [u8; 3],
+    /// Texture page (base offset in VRAM used for texture lookup)
+    texture_page: [u16; 2],
+    /// Texture coordinates within the page
+    texture_coord: [u16; 2],
+    /// Color Look-Up Table (palette) coordinates in VRAM
+    clut: [u16; 2],
+    /// Blending mode: 0: no texture, 1: raw-texture, 2: texture-blended
+    texture_blend_mode: u8,
+    /// Right shift from 16bits: 0 for 16bpp textures, 1 for 8bpp, 2
+    /// for 4bpp
+    depth_shift: u8,
+    /// True if dithering is enabled for this primitive
+    dither: u8,
+}
+
+impl CommandVertex {
+    pub fn new(pos: [i16; 2],
+               color: [u8; 3],
+               blend_mode: BlendMode,
+               texture_page: [u16; 2],
+               texture_coord: [u16; 2],
+               clut: [u16; 2],
+               texture_depth: TextureDepth,
+               dither: bool) -> CommandVertex {
+
+        let blend_mode =
+            match blend_mode {
+                BlendMode::None => 0,
+                BlendMode::Raw => 1,
+                BlendMode::Blended => 2,
+            };
+
+        let depth_shift =
+            match texture_depth {
+                TextureDepth::T4Bpp => 2,
+                TextureDepth::T8Bpp => 1,
+                TextureDepth::T16Bpp => 0,
+            };
+
+        CommandVertex {
+            position: pos,
+            color: color,
+            texture_page: texture_page,
+            texture_coord: texture_coord,
+            texture_blend_mode: blend_mode,
+            clut: clut,
+            depth_shift: depth_shift,
+            dither: dither as u8,
+        }
+    }
+}

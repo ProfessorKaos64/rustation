@@ -15,7 +15,7 @@ keywords = ["emulator", "playstation"]
 
 [dependencies]
 
-#glium = "0.10.0"
+shaman = "0.1.0"
 
 [lib]
 name = "rustation"
