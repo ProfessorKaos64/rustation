@@ -2,7 +2,6 @@ use memory::Addressable;
 use memory::interrupts::{Interrupt, InterruptState};
 use memory::timers::Timers;
 use timekeeper::{TimeKeeper, Peripheral, Cycles, FracCycles};
-use HardwareType;
 
 pub struct Gpu {
     /// OpenGL renderer
@@ -90,8 +89,8 @@ pub struct Gpu {
     display_line: u16,
     /// Current GPU clock tick for the current line
     display_line_tick: u16,
-    /// Hardware type (PAL or NTSC)
-    hardware: HardwareType,
+    /// Video standard (PAL or NTSC)
+    standard: VideoStandard,
     /// Next word returned by the GPUREAD command
     read_word: u32,
     /// When drawing polylines we must keep track of the previous
@@ -100,7 +99,7 @@ pub struct Gpu {
 }
 
 impl Gpu {
-    pub fn new(hardware: HardwareType) -> Gpu {
+    pub fn new(standard: VideoStandard) -> Gpu {
         let dummy_gp0 =
             Gp0Attributes::new(Gpu::gp0_nop, false, BlendMode::None, false);
 
@@ -144,7 +143,7 @@ impl Gpu {
             gpu_clock_phase: 0,
             display_line: 0,
             display_line_tick: 0,
-            hardware: hardware,
+            standard: standard,
             read_word: 0,
             polyline_prev: ([0; 2], [0; 3]),
             //load_buffer: LoadBuffer::null(),
@@ -170,9 +169,9 @@ impl Gpu {
         // First we convert the delta into GPU clock periods.
         // GPU clock in Hz
         let gpu_clock =
-            match self.hardware {
-                HardwareType::Ntsc => 53_690_000.,
-                HardwareType::Pal  => 53_200_000.,
+            match self.standard {
+                VideoStandard::Ntsc => 53_690_000.,
+                VideoStandard::Pal  => 53_200_000.,
             };
 
         // CPU clock in Hz
@@ -1850,4 +1849,12 @@ impl CommandVertex {
             dither: dither as u8,
         }
     }
+}
+
+/// The are a few hardware differences between PAL and NTSC consoles,
+/// for instance the pixelclock runs slightly slower on PAL consoles.
+#[derive(Clone,Copy)]
+pub enum VideoStandard {
+    Ntsc,
+    Pal,
 }

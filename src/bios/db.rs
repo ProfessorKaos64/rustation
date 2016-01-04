@@ -1,6 +1,6 @@
 //! BIOS database, lifted from mednafen
 
-use Region;
+use cdrom::disc::Region;
 
 use shaman::digest::Digest;
 use shaman::sha2::Sha256;

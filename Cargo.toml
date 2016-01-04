@@ -16,6 +16,7 @@ keywords = ["emulator", "playstation"]
 [dependencies]
 
 shaman = "0.1.0"
+log = "0.3.4"
 
 [lib]
 name = "rustation"

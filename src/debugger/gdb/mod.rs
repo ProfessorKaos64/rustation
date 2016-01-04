@@ -16,12 +16,12 @@ pub struct GdbRemote {
 
 impl GdbRemote {
     pub fn new(listener: &TcpListener) -> GdbRemote {
-        println!("Debugger waiting for gdb connection...");
+        info!("Debugger waiting for gdb connection...");
 
         let remote =
             match listener.accept() {
                 Ok((stream, sockaddr)) => {
-                    println!("Connection from {}", sockaddr);
+                    info!("Connection from {}", sockaddr);
                     stream
                 }
                 Err(e) => panic!("Accept failed: {}", e),
@@ -75,7 +75,7 @@ impl GdbRemote {
                 match r {
                     Ok(b)  => b,
                     Err(e) => {
-                        println!("GDB remote error: {}", e);
+                        warn!("GDB remote error: {}", e);
                         return PacketResult::EndOfStream;
                     }
                 };
@@ -104,7 +104,7 @@ impl GdbRemote {
                             state = State::WaitForCheckSum2(b);
                         }
                         None => {
-                            println!("Got invalid GDB checksum char {}",
+                            warn!("Got invalid GDB checksum char {}",
                                      byte);
                             return PacketResult::BadChecksum(packet);
                         }
@@ -116,8 +116,8 @@ impl GdbRemote {
                             let expected = (c1 << 4) | c2;
 
                             if expected != csum {
-                                println!("Got invalid GDB checksum: {:x} {:x}",
-                                         expected, csum);
+                                warn!("Got invalid GDB checksum: {:x} {:x}",
+                                      expected, csum);
                                 return PacketResult::BadChecksum(packet);
                             }
 
@@ -125,8 +125,8 @@ impl GdbRemote {
                             return PacketResult::Ok(packet);
                         }
                         None => {
-                            println!("Got invalid GDB checksum char {}",
-                                     byte);
+                            warn!("Got invalid GDB checksum char {}",
+                                  byte);
                             return PacketResult::BadChecksum(packet);
                         }
                     }
@@ -134,14 +134,14 @@ impl GdbRemote {
             }
         }
 
-        println!("GDB remote end of stream");
+        warn!("GDB remote end of stream");
         return PacketResult::EndOfStream;
     }
 
     /// Acknowledge packet reception
     fn ack(&mut self) -> GdbResult {
         if let Err(e) = self.remote.write(b"+") {
-            println!("Couldn't send ACK to GDB remote: {}", e);
+            warn!("Couldn't send ACK to GDB remote: {}", e);
             Err(())
         } else {
             Ok(())
@@ -151,7 +151,7 @@ impl GdbRemote {
     /// Request packet retransmission
     fn nack(&mut self) -> GdbResult {
         if let Err(e) = self.remote.write(b"-") {
-            println!("Couldn't send NACK to GDB remote: {}", e);
+            warn!("Couldn't send NACK to GDB remote: {}", e);
             Err(())
         } else {
             Ok(())
@@ -191,7 +191,7 @@ impl GdbRemote {
             // do we do if it's less than we expected, retransmit?
             Ok(_) => Ok(()),
             Err(e) => {
-                println!("Couldn't send data to GDB remote: {}", e);
+                warn!("Couldn't send data to GDB remote: {}", e);
                 Err(())
             }
         }
