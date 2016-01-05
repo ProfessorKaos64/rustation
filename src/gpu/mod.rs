@@ -482,7 +482,7 @@ impl Gpu {
 
     /// Retrieve value of the "read" register
     fn read(&self) -> u32 {
-        println!("GPUREAD");
+        debug!("GPUREAD");
         // XXX framebuffer read not supported
         self.read_word
     }
@@ -744,12 +744,12 @@ impl Gpu {
         // XXX Normally the fill rect wraps around: if the x or y
         // coordinates overflow we should wrap around the image.
         if right > 0x400 {
-            println!("Fill rect X overflow: {}", right);
+            warn!("Fill rect X overflow: {}", right);
             right = 0x400;
         }
 
         if bottom > 0x200 {
-            println!("Fill rect Y overflow: {}", bottom);
+            warn!("Fill rect Y overflow: {}", bottom);
             bottom = 0x200;
         }
 
@@ -765,8 +765,8 @@ impl Gpu {
         let dst_top_left = gp0_position(self.gp0_command[2]);
 
         // XXX Implement me
-        println!("Copy Rectangle {:?} {:?} {:?}",
-                 size, src_top_left, dst_top_left);
+        debug!("Copy Rectangle {:?} {:?} {:?}",
+               size, src_top_left, dst_top_left);
     }
 
     /// Draw an untextured unshaded triangle
@@ -1147,7 +1147,7 @@ impl Gpu {
             // Use a custom GP0 handler to handle the GP0 image load
             self.gp0_handler = Gpu::gp0_handle_image_load;
         } else {
-            println!("GPU: 0-sized image load");
+            warn!("GPU: 0-sized image load");
         }
 
     }
@@ -1160,7 +1160,7 @@ impl Gpu {
         let width  = res & 0xffff;
         let height = res >> 16;
 
-        println!("Unhandled image store: {}x{}", width, height);
+        warn!("Unhandled image store: {}x{}", width, height);
     }
 
     /// GP0(0xE1): Draw Mode
@@ -1688,7 +1688,7 @@ impl Gp0Attributes {
                 // Not sure what this does, No$ says it's
                 // "reserved". More testing required...
                 _ => {
-                    println!("Invalid texture depth");
+                    warn!("Invalid texture depth");
                     TextureDepth::T16Bpp
                 }
             };

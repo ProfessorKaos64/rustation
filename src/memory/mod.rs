@@ -163,7 +163,7 @@ impl Interconnect {
         }
 
         if let Some(offset) = map::MDEC.contains(abs_addr) {
-            println!("Unhandled load from MDEC register {:x}", offset);
+            warn!("Unhandled load from MDEC register {:x}", offset);
             return 0;
         }
 
@@ -257,7 +257,7 @@ impl Interconnect {
         }
 
         if let Some(offset) = map::MDEC.contains(abs_addr) {
-            println!("Unhandled write to MDEC register {:x}", offset);
+            warn!("Unhandled write to MDEC register {:x}", offset);
             return;
         }
 
@@ -299,9 +299,9 @@ impl Interconnect {
                         panic!("Bad expansion 2 base address: 0x{:08x}", val);
                     },
                 _ =>
-                    println!("Unhandled write to MEM_CONTROL register {:x}: \
-                              0x{:08x}",
-                             offset, val),
+                    warn!("Unhandled write to MEM_CONTROL register {:x}: \
+                           0x{:08x}",
+                          offset, val),
             }
 
             let index = (offset >> 2) as usize;
@@ -322,7 +322,7 @@ impl Interconnect {
         }
 
         if let Some(offset) = map::EXPANSION_2.contains(abs_addr) {
-            println!("Unhandled write to expansion 2 register {:x}", offset);
+            warn!("Unhandled write to expansion 2 register {:x}", offset);
             return;
         }
 
@@ -536,7 +536,7 @@ impl Interconnect {
                         Port::MDecOut => 0,
                         Port::Gpu => {
                             // XXX to be implemented
-                            println!("DMA GPU READ");
+                            debug!("DMA GPU READ");
                             0
                         }
                         Port::CdRom => self.cdrom.dma_read_word(),

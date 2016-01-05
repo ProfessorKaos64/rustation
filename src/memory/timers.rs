@@ -394,7 +394,7 @@ impl Timer {
         }
 
         if self.use_sync {
-            println!("Sync mode is not supported: {:?}", self);
+            warn!("Sync mode is not supported: {:?}", self);
         }
     }
 

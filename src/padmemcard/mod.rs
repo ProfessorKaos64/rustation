@@ -230,7 +230,7 @@ impl PadMemCard {
 
         if self.bus.is_busy() {
             // I suppose the transfer should be queued in the TX FIFO?
-            println!("Gamepad command {:x} while bus is busy!", cmd);
+            warn!("Gamepad command {:x} while bus is busy!", cmd);
         }
 
         let (response, dsr) =
@@ -324,7 +324,7 @@ impl PadMemCard {
                     // which will be seen by the edge-triggered top
                     // level interrupt controller. So I guess this
                     // shouldn't happen?
-                    println!("Gamepad interrupt acknowledge while DSR is active");
+                    warn!("Gamepad interrupt acknowledge while DSR is active");
 
                     self.interrupt = true;
                     irq_state.assert(Interrupt::PadMemCard);

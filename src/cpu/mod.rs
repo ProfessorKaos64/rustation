@@ -456,7 +456,7 @@ impl Cpu {
 
     /// Illegal instruction
     fn op_illegal(&mut self, instruction: Instruction) {
-        println!("Illegal instruction {}!", instruction);
+        warn!("Illegal instruction {}!", instruction);
         self.exception(Exception::IllegalInstruction);
     }
 

@@ -140,7 +140,7 @@ impl CdRom {
                 0 => self.status(),
                 1 => {
                     if self.response.empty() {
-                        println!("CDROM response FIFO underflow");
+                        warn!("CDROM response FIFO underflow");
                     }
 
                     self.response.pop()
@@ -214,7 +214,7 @@ impl CdRom {
                         }
                     }
                     2 => self.mixer.cd_left_to_spu_right = val,
-                    3 => println!("CDROM Mixer apply {:02x}", val),
+                    3 => debug!("CDROM Mixer apply {:02x}", val),
                     _ => unimplemented(),
                 },
             _ => unimplemented(),
@@ -242,7 +242,7 @@ impl CdRom {
                     // Not yet there
                     delay - delta as u32
                 } else {
-                    println!("[{}] CDROM read sector {}", tk, self.position);
+                    debug!("[{}] CDROM read sector {}", tk, self.position);
 
                     // A sector has been read from the disc
                     self.sector_read(irq_state);
@@ -542,7 +542,7 @@ impl CdRom {
 
     fn push_param(&mut self, param: u8) {
         if self.params.full() {
-            println!("CDROM parameter FIFO overflow");
+            warn!("CDROM parameter FIFO overflow");
         }
 
         self.params.push(param);
@@ -743,7 +743,7 @@ impl CdRom {
     /// disc
     fn cmd_pause(&mut self) -> CommandState {
         if self.read_state.is_idle() {
-            println!("Pause when we're not reading");
+            warn!("Pause when we're not reading");
         }
 
         self.on_ack = CdRom::ack_pause;
