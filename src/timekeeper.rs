@@ -64,7 +64,7 @@ impl TimeKeeper {
 
     /// Set next sync *only* if it's closer than what's already
     /// configured.
-    pub fn set_next_sync_delta_if_closer(&mut self,
+    pub fn set_next_sync_delta_if_sooner(&mut self,
                                          who: Peripheral,
                                          delta: Cycles) {
         let date = self.now + delta;

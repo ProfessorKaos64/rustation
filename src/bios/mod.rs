@@ -1,6 +1,3 @@
-use std::path::Path;
-use std::io::Read;
-
 use memory::Addressable;
 
 use self::db::Metadata;

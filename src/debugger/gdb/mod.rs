@@ -4,6 +4,8 @@ use std::io::{Read, Write};
 use debugger::Debugger;
 use cpu::Cpu;
 use memory::{Byte, HalfWord, Word};
+use interrupt::InterruptState;
+
 use self::reply::Reply;
 
 mod reply;
@@ -239,7 +241,9 @@ impl GdbRemote {
                      cpu.lo(),
                      cpu.hi(),
                      cpu.bad(),
-                     cpu.cause(),
+                     // XXX We should figure out a way to get the real
+                     // irq_state over here...
+                     cpu.cause(InterruptState::new()),
                      cpu.pc() ] {
             reply.push_u32(r);
         }

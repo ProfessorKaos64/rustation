@@ -6,13 +6,15 @@ extern crate log;
 pub mod gpu;
 pub mod cdrom;
 pub mod bios;
-pub mod debugger;
 pub mod memory;
 pub mod cpu;
+pub mod shared;
 
+mod interrupt;
 mod timekeeper;
 mod padmemcard;
 mod spu;
+mod debugger;
 
 /// Version of the rustation library set in Cargo.toml
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");

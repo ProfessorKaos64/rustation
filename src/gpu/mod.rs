@@ -1,7 +1,12 @@
 use memory::Addressable;
-use memory::interrupts::{Interrupt, InterruptState};
 use memory::timers::Timers;
-use timekeeper::{TimeKeeper, Peripheral, Cycles, FracCycles};
+use shared::SharedState;
+use interrupt::Interrupt;
+use timekeeper::{Peripheral, Cycles, FracCycles};
+
+use self::renderer::Renderer;
+
+pub mod renderer;
 
 pub struct Gpu {
     /// OpenGL renderer
@@ -70,7 +75,7 @@ pub struct Gpu {
     /// DMA request direction
     dma_direction: DmaDirection,
     /// Handler function for GP0 writes
-    gp0_handler: fn (&mut Gpu, val: u32),
+    gp0_handler: fn (&mut Gpu, &mut Renderer, u32),
     /// Buffer containing the current GP0 command
     gp0_command: CommandBuffer,
     /// Remaining number of words to fetch for the current GP0 command
@@ -225,10 +230,9 @@ impl Gpu {
 
     /// Update the GPU state to its current status
     pub fn sync(&mut self,
-                tk: &mut TimeKeeper,
-                irq_state: &mut InterruptState) {
+                shared: &mut SharedState) {
 
-        let delta = tk.sync(Peripheral::Gpu);
+        let delta = shared.tk().sync(Peripheral::Gpu);
 
         // Convert delta in GPU time, adding the leftover from the
         // last time
@@ -277,7 +281,7 @@ impl Gpu {
 
         if !self.vblank_interrupt && vblank_interrupt {
             // Rising edge of the vblank interrupt
-            irq_state.assert(Interrupt::VBlank);
+            shared.irq_state().assert(Interrupt::VBlank);
         }
 
         if self.vblank_interrupt && !vblank_interrupt {
@@ -288,11 +292,11 @@ impl Gpu {
 
         self.vblank_interrupt = vblank_interrupt;
 
-        self.predict_next_sync(tk);
+        self.predict_next_sync(shared);
     }
 
     /// Predict when the next "forced" sync should take place
-    pub fn predict_next_sync(&self, tk: &mut TimeKeeper) {
+    pub fn predict_next_sync(&self, shared: &mut SharedState) {
         let (ticks_per_line, lines_per_frame) = self.vmode_timings();
 
         let ticks_per_line = ticks_per_line as Cycles;
@@ -344,7 +348,7 @@ impl Gpu {
         let ratio = self.gpu_to_cpu_clock_ratio().get_fp();
         delta = (delta + ratio - 1) / ratio;
 
-        tk.set_next_sync_delta(Peripheral::Gpu, delta);
+        shared.tk().set_next_sync_delta(Peripheral::Gpu, delta);
     }
 
     /// Called when we want to display a new frame. Refreshes the
@@ -377,15 +381,14 @@ impl Gpu {
     }
 
     pub fn load<T: Addressable>(&mut self,
-                                tk: &mut TimeKeeper,
-                                irq_state: &mut InterruptState,
+                                shared: &mut SharedState,
                                 offset: u32) -> u32 {
 
         if T::size() != 4 {
             panic!("Unhandled GPU load ({})", T::size());
         }
 
-        self.sync(tk, irq_state);
+        self.sync(shared);
 
         let r =
             match offset {
@@ -398,9 +401,9 @@ impl Gpu {
     }
 
     pub fn store<T: Addressable>(&mut self,
-                                 tk: &mut TimeKeeper,
+                                 shared: &mut SharedState,
+                                 renderer: &mut Renderer,
                                  timers: &mut Timers,
-                                 irq_state: &mut InterruptState,
                                  offset: u32,
                                  val: u32) {
 
@@ -408,18 +411,18 @@ impl Gpu {
             panic!("Unhandled GPU load ({})", T::size());
         }
 
-        self.sync(tk, irq_state);
+        self.sync(shared);
 
         match offset {
-            0 => self.gp0(val),
-            4 => self.gp1(val, tk, timers, irq_state),
+            0 => self.gp0(renderer, val),
+            4 => self.gp1(shared, val, timers),
             _ => unreachable!(),
         }
     }
 
     /// Dispatch to the current GP0 handler method
-    pub fn gp0(&mut self, val: u32) {
-        (self.gp0_handler)(self, val);
+    pub fn gp0(&mut self, renderer: &mut Renderer, val: u32) {
+        (self.gp0_handler)(self, renderer, val);
     }
 
     /// Retrieve value of the status register
@@ -488,7 +491,7 @@ impl Gpu {
     }
 
     /// GP0 handler method: handle a command word
-    fn gp0_handle_command(&mut self, val: u32) {
+    fn gp0_handle_command(&mut self, renderer: &mut Renderer, val: u32) {
         let (len, attributes) = self.gp0_parse_command(val);
 
         self.gp0_words_remaining = len;
@@ -498,11 +501,11 @@ impl Gpu {
         self.gp0_handler = Gpu::gp0_handle_parameter;
 
         // Call the parameter handling function for the current word
-        self.gp0_handle_parameter(val);
+        self.gp0_handle_parameter(renderer, val);
     }
 
     /// GP0 handler method: handle a command parameter
-    fn gp0_handle_parameter(&mut self, val: u32) {
+    fn gp0_handle_parameter(&mut self, renderer: &mut Renderer, val: u32) {
         self.gp0_command.push_word(val);
         self.gp0_words_remaining -= 1;
 
@@ -516,12 +519,12 @@ impl Gpu {
             // Reset GP0 handler. Can be overriden by the callback in
             // certain cases, for instance for image load commands.
             self.gp0_handler = Gpu::gp0_handle_command;
-            (self.gp0_attributes.callback)(self);
+            (self.gp0_attributes.callback)(self, renderer);
         }
     }
 
     /// GP0 handler method: handle image load
-    fn gp0_handle_image_load(&mut self, word: u32) {
+    fn gp0_handle_image_load(&mut self, _: &mut Renderer, word: u32) {
         //self.load_buffer.push_word(word);
 
         self.gp0_words_remaining -= 1;
@@ -542,7 +545,7 @@ impl Gpu {
     }
 
     /// GP0 handler method: handle shaded polyline color word
-    fn gp0_handle_shaded_polyline_color(&mut self, val: u32) {
+    fn gp0_handle_shaded_polyline_color(&mut self, _: &mut Renderer, val: u32) {
         self.gp0_handler =
             if is_polyline_end_marker(val) {
                 // We found the end-of-polyline marker, we're done.
@@ -557,7 +560,9 @@ impl Gpu {
     }
 
     /// GP0 handler method: handle shaded polyline vertex word
-    fn gp0_handle_shaded_polyline_vertex(&mut self, val: u32) {
+    fn gp0_handle_shaded_polyline_vertex(&mut self,
+                                         _: &mut Renderer,
+                                         val: u32) {
         // We don't test for the end-of-polyline marker here because
         // it only works in color words for shaded polylines.
 
@@ -583,7 +588,9 @@ impl Gpu {
     }
 
     /// GP0 handler method: handle monochrome polyline position word
-    fn gp0_handle_monochrome_polyline_vertex(&mut self, val: u32) {
+    fn gp0_handle_monochrome_polyline_vertex(&mut self,
+                                             _: &mut Renderer,
+                                             val: u32) {
         if is_polyline_end_marker(val) {
             // We found the end-of-polyline marker, we're done.
             self.gp0_handler = Gpu::gp0_handle_command;
@@ -613,7 +620,7 @@ impl Gpu {
 
         let dither = self.dither();
 
-        let (len, cback, dither): (u32, fn(&mut Gpu), bool) =
+        let (len, cback, dither): (u32, fn(&mut Gpu, &mut Renderer), bool) =
             match opcode {
                 0x00 => (1,  Gpu::gp0_nop, false),
                 0x01 => (1,  Gpu::gp0_clear_cache, false),
@@ -705,18 +712,18 @@ impl Gpu {
     }
 
     /// GP0(0x00): No operation
-    fn gp0_nop(&mut self) {
+    fn gp0_nop(&mut self, _: &mut Renderer) {
         // NOP
     }
 
     /// GP0(0x01): Clear cache
-    fn gp0_clear_cache(&mut self) {
+    fn gp0_clear_cache(&mut self, _: &mut Renderer) {
         // XXX Not implemented
     }
 
     /// GP0(0x02): Fill rectangle
     /// *Not* affected by mask setting unlike other rect commands
-    fn gp0_fill_rect(&mut self) {
+    fn gp0_fill_rect(&mut self, _: &mut Renderer) {
         let top_left = gp0_position(self.gp0_command[1]);
         let size = gp0_position(self.gp0_command[2]);
 
@@ -759,7 +766,7 @@ impl Gpu {
     }
 
     /// Gp0(0x80): Copy rectangle
-    fn gp0_copy_rect(&mut self) {
+    fn gp0_copy_rect(&mut self, _: &mut Renderer) {
         let size = gp0_position(self.gp0_command[3]);
         let src_top_left = gp0_position(self.gp0_command[1]);
         let dst_top_left = gp0_position(self.gp0_command[2]);
@@ -770,7 +777,7 @@ impl Gpu {
     }
 
     /// Draw an untextured unshaded triangle
-    fn gp0_monochrome_triangle(&mut self) {
+    fn gp0_monochrome_triangle(&mut self, _: &mut Renderer) {
         let color = gp0_color(self.gp0_command[0]);
 
         let vertices = [
@@ -786,7 +793,7 @@ impl Gpu {
     }
 
     /// Draw an untextured unshaded quad
-    fn gp0_monochrome_quad(&mut self) {
+    fn gp0_monochrome_quad(&mut self, _: &mut Renderer) {
         let color = gp0_color(self.gp0_command[0]);
 
         let vertices = [
@@ -804,7 +811,7 @@ impl Gpu {
     }
 
     /// Draw a monochrome line
-    fn gp0_monochrome_line(&mut self) {
+    fn gp0_monochrome_line(&mut self, _: &mut Renderer) {
         let vertices = [
             self.gp0_attributes.vertex(gp0_position(self.gp0_command[1]),
                                        gp0_color(self.gp0_command[0])),
@@ -816,7 +823,7 @@ impl Gpu {
     }
 
     /// Draw a monochrome polyline
-    fn gp0_monochrome_polyline(&mut self) {
+    fn gp0_monochrome_polyline(&mut self, _: &mut Renderer) {
         // Start with the first segment. The end-of-polyline marker is
         // ignored for the first two vertices.
 
@@ -841,7 +848,7 @@ impl Gpu {
 
 
     /// Draw a textured unshaded triangle
-    fn gp0_textured_triangle(&mut self) {
+    fn gp0_textured_triangle(&mut self, _: &mut Renderer) {
         let color = gp0_color(self.gp0_command[0]);
 
         self.gp0_attributes.set_clut(self.gp0_command[2] >> 16);
@@ -866,7 +873,7 @@ impl Gpu {
     }
 
     /// Draw a textured unshaded quad
-    fn gp0_textured_quad(&mut self) {
+    fn gp0_textured_quad(&mut self, _: &mut Renderer) {
         let color = gp0_color(self.gp0_command[0]);
 
         self.gp0_attributes.set_clut(self.gp0_command[2] >> 16);
@@ -895,7 +902,7 @@ impl Gpu {
     }
 
     /// Draw an untextured shaded triangle
-    fn gp0_shaded_triangle(&mut self) {
+    fn gp0_shaded_triangle(&mut self, _: &mut Renderer) {
         let vertices = [
             self.gp0_attributes.vertex(gp0_position(self.gp0_command[1]),
                                        gp0_color(self.gp0_command[0])),
@@ -909,7 +916,7 @@ impl Gpu {
     }
 
     /// Draw an untextured shaded quad
-    fn gp0_shaded_quad(&mut self) {
+    fn gp0_shaded_quad(&mut self, _: &mut Renderer) {
         let vertices = [
             self.gp0_attributes.vertex(gp0_position(self.gp0_command[1]),
                                        gp0_color(self.gp0_command[0])),
@@ -925,7 +932,7 @@ impl Gpu {
     }
 
     /// Draw a shaded line
-    fn gp0_shaded_line(&mut self) {
+    fn gp0_shaded_line(&mut self, _: &mut Renderer) {
         let vertices = [
             self.gp0_attributes.vertex(gp0_position(self.gp0_command[1]),
                                        gp0_color(self.gp0_command[0])),
@@ -937,7 +944,7 @@ impl Gpu {
     }
 
     /// Draw a shaded polyline
-    fn gp0_shaded_polyline(&mut self) {
+    fn gp0_shaded_polyline(&mut self, _: &mut Renderer) {
         // Start with the first segment. We cannot have an
         // end-of-polyline marker in any of these vertice's color code
         // (if you put the marker in the 2nd vertex color word it's
@@ -965,7 +972,7 @@ impl Gpu {
     }
 
     /// Draw a textured shaded triangle
-    fn gp0_textured_shaded_triangle(&mut self) {
+    fn gp0_textured_shaded_triangle(&mut self, _: &mut Renderer) {
 
         self.gp0_attributes.set_clut(self.gp0_command[2] >> 16);
         self.gp0_attributes.set_draw_params(self.gp0_command[5] >> 16);
@@ -989,7 +996,7 @@ impl Gpu {
     }
 
     /// Draw a textured shaded quad
-    fn gp0_textured_shaded_quad(&mut self) {
+    fn gp0_textured_shaded_quad(&mut self, _: &mut Renderer) {
 
         self.gp0_attributes.set_clut(self.gp0_command[2] >> 16);
         self.gp0_attributes.set_draw_params(self.gp0_command[5] >> 16);
@@ -1080,42 +1087,42 @@ impl Gpu {
     }
 
     /// Draw a textured rectangle
-    fn gp0_textured_rect(&mut self) {
+    fn gp0_textured_rect(&mut self, _: &mut Renderer) {
         let size = gp0_position(self.gp0_command[3]);
 
         self.gp0_rect_sized_textured(size[0], size[1]);
     }
 
     /// Draw a monochrome rectangle
-    fn gp0_monochrome_rect(&mut self) {
+    fn gp0_monochrome_rect(&mut self, _: &mut Renderer) {
         let size = gp0_position(self.gp0_command[2]);
 
         self.gp0_rect_sized(size[0], size[1]);
     }
 
     /// Draw a 1x1 monochrome rectangle (point)
-    fn gp0_monochrome_rect_1x1(&mut self) {
+    fn gp0_monochrome_rect_1x1(&mut self, _: &mut Renderer) {
         self.gp0_rect_sized(1, 1);
     }
 
     /// Draw a 16x16 monochrome rectangle
-    fn gp0_monochrome_rect_16x16(&mut self) {
+    fn gp0_monochrome_rect_16x16(&mut self, _: &mut Renderer) {
         self.gp0_rect_sized(16, 16);
     }
 
 
     /// Draw a 8x8 textured rectangle
-    fn gp0_textured_rect_8x8(&mut self) {
+    fn gp0_textured_rect_8x8(&mut self, _: &mut Renderer) {
         self.gp0_rect_sized_textured(8, 8);
     }
 
     /// Draw a 16x16 textured rectangle
-    fn gp0_textured_rect_16x16(&mut self) {
+    fn gp0_textured_rect_16x16(&mut self, _: &mut Renderer) {
         self.gp0_rect_sized_textured(16, 16);
     }
 
     /// GP0(0xA0): Image Load
-    fn gp0_image_load(&mut self) {
+    fn gp0_image_load(&mut self, _: &mut Renderer) {
         // Parameter 1 contains the location of the target location's
         // top-left corner in VRAM
         let pos = self.gp0_command[1];
@@ -1153,7 +1160,7 @@ impl Gpu {
     }
 
     /// GP0(0xC0): Image Store
-    fn gp0_image_store(&mut self) {
+    fn gp0_image_store(&mut self, _: &mut Renderer) {
         // Parameter 2 contains the image resolution
         let res = self.gp0_command[2];
 
@@ -1164,12 +1171,12 @@ impl Gpu {
     }
 
     /// GP0(0xE1): Draw Mode
-    fn gp0_draw_mode(&mut self) {
+    fn gp0_draw_mode(&mut self, _: &mut Renderer) {
         self.draw_mode = self.gp0_command[0] as u16;
     }
 
     /// GP0(0xE2): Set Texture Window
-    fn gp0_texture_window(&mut self) {
+    fn gp0_texture_window(&mut self, _: &mut Renderer) {
         let val = self.gp0_command[0];
 
         self.texture_window_x_mask = (val & 0x1f) as u8;
@@ -1179,7 +1186,7 @@ impl Gpu {
     }
 
     /// GP0(0xE3): Set Drawing Area top left
-    fn gp0_drawing_area_top_left(&mut self) {
+    fn gp0_drawing_area_top_left(&mut self, _: &mut Renderer) {
         let val = self.gp0_command[0];
 
         self.drawing_area_top = ((val >> 10) & 0x3ff) as u16;
@@ -1189,7 +1196,7 @@ impl Gpu {
     }
 
     /// GP0(0xE4): Set Drawing Area bottom right
-    fn gp0_drawing_area_bottom_right(&mut self) {
+    fn gp0_drawing_area_bottom_right(&mut self, _: &mut Renderer) {
         let val = self.gp0_command[0];
 
         self.drawing_area_bottom = ((val >> 10) & 0x3ff) as u16;
@@ -1207,7 +1214,7 @@ impl Gpu {
     }
 
     /// GP0(0xE5): Set Drawing Offset
-    fn gp0_drawing_offset(&mut self) {
+    fn gp0_drawing_offset(&mut self, _: &mut Renderer) {
         let val = self.gp0_command[0];
 
         let x = (val & 0x7ff) as u16;
@@ -1223,7 +1230,7 @@ impl Gpu {
     }
 
     /// GP0(0xE6): Set Mask Bit Setting
-    fn gp0_mask_bit_setting(&mut self) {
+    fn gp0_mask_bit_setting(&mut self, _: &mut Renderer) {
         let val = self.gp0_command[0];
 
         self.force_set_mask_bit = (val & 1) != 0;
@@ -1232,16 +1239,16 @@ impl Gpu {
 
     /// Handle writes to the GP1 command register
     pub fn gp1(&mut self,
+               shared: &mut SharedState,
                val: u32,
-               tk: &mut TimeKeeper,
-               timers: &mut Timers,
-               irq_state: &mut InterruptState) {
+               timers: &mut Timers) {
+
         let opcode = (val >> 24) & 0xff;
 
         match opcode {
             0x00 => {
-                self.gp1_reset(tk, irq_state);
-                timers.video_timings_changed(tk, irq_state, self);
+                self.gp1_reset(shared);
+                timers.video_timings_changed(shared, self);
             },
             0x01 => self.gp1_reset_command_buffer(),
             0x02 => self.gp1_acknowledge_irq(),
@@ -1249,11 +1256,11 @@ impl Gpu {
             0x04 => self.gp1_dma_direction(val),
             0x05 => self.gp1_display_vram_start(val),
             0x06 => self.gp1_display_horizontal_range(val),
-            0x07 => self.gp1_display_vertical_range(val, tk, irq_state),
+            0x07 => self.gp1_display_vertical_range(shared,val),
             0x10 => self.gp1_get_info(val),
             0x08 => {
-                self.gp1_display_mode(val, tk, irq_state);
-                timers.video_timings_changed(tk, irq_state, self);
+                self.gp1_display_mode(shared, val);
+                timers.video_timings_changed(shared, self);
             }
             _    => panic!("Unhandled GP1 command {:08x}", val),
         }
@@ -1261,8 +1268,8 @@ impl Gpu {
 
     /// GP1(0x00): Soft Reset
     fn gp1_reset(&mut self,
-                 tk: &mut TimeKeeper,
-                 irq_state: &mut InterruptState) {
+                 shared: &mut SharedState) {
+
         self.draw_mode = 0;
         self.texture_window_x_mask = 0;
         self.texture_window_y_mask = 0;
@@ -1302,7 +1309,7 @@ impl Gpu {
         self.gp1_reset_command_buffer();
         self.gp1_acknowledge_irq();
 
-        self.sync(tk, irq_state);
+        self.sync(shared);
 
         // XXX should also invalidate GPU cache if we ever implement it
     }
@@ -1351,13 +1358,13 @@ impl Gpu {
 
     /// GP1(0x07): Display Vertical Range
     fn gp1_display_vertical_range(&mut self,
-                                  val: u32,
-                                  tk: &mut TimeKeeper,
-                                  irq_state: &mut InterruptState) {
+                                  shared: &mut SharedState,
+                                  val: u32) {
+
         self.display_line_start = (val & 0x3ff) as u16;
         self.display_line_end   = ((val >> 10) & 0x3ff) as u16;
 
-        self.sync(tk, irq_state);
+        self.sync(shared);
     }
 
     /// Return various GPU state information in the GPUREAD register
@@ -1396,9 +1403,8 @@ impl Gpu {
 
     /// GP1(0x08): Display Mode
     fn gp1_display_mode(&mut self,
-                        val: u32,
-                        tk: &mut TimeKeeper,
-                        irq_state: &mut InterruptState) {
+                        shared: &mut SharedState,
+                        val: u32) {
         let hr1 = (val & 3) as u8;
         let hr2 = ((val >> 6) & 1) as u8;
 
@@ -1430,7 +1436,7 @@ impl Gpu {
             panic!("Unsupported display mode {:08x}", val);
         }
 
-        self.sync(tk, irq_state);
+        self.sync(shared);
     }
 }
 
@@ -1622,7 +1628,7 @@ impl ::std::ops::Index<usize> for CommandBuffer {
 /// `parser_callback`
 struct Gp0Attributes {
     /// Method called when all the parameters have been received.
-    callback: fn(&mut Gpu),
+    callback: fn(&mut Gpu, &mut Renderer),
     /// XXX implement me
     #[allow(dead_code)]
     semi_transparent: bool,
@@ -1637,7 +1643,7 @@ struct Gp0Attributes {
 impl Gp0Attributes {
     /// Builder for GP0 commands that just need a parser and ignore
     /// the other attributes.
-    fn new(callback: fn(&mut Gpu),
+    fn new(callback: fn(&mut Gpu, &mut Renderer),
            semi_transparent: bool,
            blend_mode: BlendMode,
            dither: bool) -> Gp0Attributes {
