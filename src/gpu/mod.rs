@@ -4,7 +4,7 @@ use shared::SharedState;
 use interrupt::Interrupt;
 use timekeeper::{Peripheral, Cycles, FracCycles};
 
-use self::renderer::Renderer;
+use self::renderer::{Renderer, Vertex};
 
 pub mod renderer;
 
@@ -285,9 +285,8 @@ impl Gpu {
         }
 
         if self.vblank_interrupt && !vblank_interrupt {
-            // End of vertical blanking, probably as a good place as
-            // any to update the display
-            self.display();
+            // End of vertical blanking, we're starting a new frame
+            shared.new_frame();
         }
 
         self.vblank_interrupt = vblank_interrupt;
@@ -349,16 +348,6 @@ impl Gpu {
         delta = (delta + ratio - 1) / ratio;
 
         shared.tk().set_next_sync_delta(Peripheral::Gpu, delta);
-    }
-
-    /// Called when we want to display a new frame. Refreshes the
-    /// video output.
-    fn display(&mut self) {
-        // self.renderer.display(self.display_vram_x_start,
-        //                       self.display_vram_y_start,
-        //                       self.hres.width(),
-        //                       self.vres.height(),
-        //                       self.display_depth);
     }
 
     /// Return true if we're currently in the video blanking period
@@ -777,19 +766,19 @@ impl Gpu {
     }
 
     /// Draw an untextured unshaded triangle
-    fn gp0_monochrome_triangle(&mut self, _: &mut Renderer) {
+    fn gp0_monochrome_triangle(&mut self, renderer: &mut Renderer) {
         let color = gp0_color(self.gp0_command[0]);
 
         let vertices = [
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[1]),
-                                       color),
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[2]),
-                                       color),
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[3]),
-                                       color),
+            Vertex::new(gp0_position(self.gp0_command[1]),
+                        color),
+            Vertex::new(gp0_position(self.gp0_command[2]),
+                        color),
+            Vertex::new(gp0_position(self.gp0_command[3]),
+                        color),
             ];
 
-        //self.renderer.push_triangle(&vertices);
+        renderer.push_triangle(&vertices);
     }
 
     /// Draw an untextured unshaded quad
@@ -902,17 +891,17 @@ impl Gpu {
     }
 
     /// Draw an untextured shaded triangle
-    fn gp0_shaded_triangle(&mut self, _: &mut Renderer) {
+    fn gp0_shaded_triangle(&mut self, renderer: &mut Renderer) {
         let vertices = [
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[1]),
-                                       gp0_color(self.gp0_command[0])),
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[3]),
-                                       gp0_color(self.gp0_command[2])),
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[5]),
-                                       gp0_color(self.gp0_command[4])),
+            Vertex::new(gp0_position(self.gp0_command[3]),
+                        gp0_color(self.gp0_command[2])),
+            Vertex::new(gp0_position(self.gp0_command[5]),
+                        gp0_color(self.gp0_command[4])),
+            Vertex::new(gp0_position(self.gp0_command[1]),
+                        gp0_color(self.gp0_command[0])),
             ];
 
-        //self.renderer.push_triangle(&vertices);
+        renderer.push_triangle(&vertices);
     }
 
     /// Draw an untextured shaded quad

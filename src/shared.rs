@@ -7,6 +7,7 @@ pub struct SharedState {
     tk: TimeKeeper,
     debugger: Debugger,
     irq_state: InterruptState,
+    frame: u32,
 }
 
 impl SharedState {
@@ -15,6 +16,7 @@ impl SharedState {
             tk: TimeKeeper::new(),
             debugger: Debugger::new(),
             irq_state: InterruptState::new(),
+            frame: 0,
         }
     }
 
@@ -28,5 +30,15 @@ impl SharedState {
 
     pub fn irq_state(&mut self) -> &mut InterruptState {
         &mut self.irq_state
+    }
+
+    pub fn frame(&self) -> u32 {
+        self.frame
+    }
+
+    pub fn new_frame(&mut self) {
+        // It will wrap in a little more than 2 years at 60Hz, better
+        // be careful
+        self.frame = self.frame.wrapping_add(1);
     }
 }

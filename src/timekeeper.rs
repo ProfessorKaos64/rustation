@@ -37,7 +37,8 @@ impl TimeKeeper {
     pub fn new() -> TimeKeeper {
         TimeKeeper {
             now: 0,
-            next_sync: Cycles::max_value(),
+            // Force a sync at the start to initialize evrything
+            next_sync: 0,
             timesheets: [TimeSheet::new(); 6],
         }
     }

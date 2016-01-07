@@ -82,6 +82,17 @@ impl Cpu {
         }
     }
 
+    /// Run the emulator until the start of the next frame
+    pub fn run_until_next_frame(&mut self,
+                                shared: &mut SharedState,
+                                renderer: &mut Renderer) {
+        let frame = shared.frame();
+
+        while frame == shared.frame() {
+            self.run_next_instruction(shared, renderer);
+        }
+    }
+
     /// Run a single CPU instruction and return
     pub fn run_next_instruction(&mut self,
                                 shared: &mut SharedState,
