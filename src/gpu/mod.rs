@@ -893,31 +893,31 @@ impl Gpu {
     /// Draw an untextured shaded triangle
     fn gp0_shaded_triangle(&mut self, renderer: &mut Renderer) {
         let vertices = [
+            Vertex::new(gp0_position(self.gp0_command[1]),
+                        gp0_color(self.gp0_command[0])),
             Vertex::new(gp0_position(self.gp0_command[3]),
                         gp0_color(self.gp0_command[2])),
             Vertex::new(gp0_position(self.gp0_command[5]),
                         gp0_color(self.gp0_command[4])),
-            Vertex::new(gp0_position(self.gp0_command[1]),
-                        gp0_color(self.gp0_command[0])),
             ];
 
         renderer.push_triangle(&vertices);
     }
 
     /// Draw an untextured shaded quad
-    fn gp0_shaded_quad(&mut self, _: &mut Renderer) {
+    fn gp0_shaded_quad(&mut self, renderer: &mut Renderer) {
         let vertices = [
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[1]),
+            Vertex::new(gp0_position(self.gp0_command[1]),
                                        gp0_color(self.gp0_command[0])),
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[3]),
+            Vertex::new(gp0_position(self.gp0_command[3]),
                                        gp0_color(self.gp0_command[2])),
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[5]),
+            Vertex::new(gp0_position(self.gp0_command[5]),
                                        gp0_color(self.gp0_command[4])),
-            self.gp0_attributes.vertex(gp0_position(self.gp0_command[7]),
+            Vertex::new(gp0_position(self.gp0_command[7]),
                                        gp0_color(self.gp0_command[6])),
             ];
 
-        //self.renderer.push_quad(&vertices);
+        renderer.push_quad(&vertices);
     }
 
     /// Draw a shaded line
