@@ -18,5 +18,7 @@ impl Vertex {
 }
 
 pub trait Renderer {
+    fn set_draw_offset(&mut self, x: i16, y: i16);
+
     fn push_triangle(&mut self, &[Vertex; 3]);
 }

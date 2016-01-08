@@ -1203,7 +1203,7 @@ impl Gpu {
     }
 
     /// GP0(0xE5): Set Drawing Offset
-    fn gp0_drawing_offset(&mut self, _: &mut Renderer) {
+    fn gp0_drawing_offset(&mut self, renderer: &mut Renderer) {
         let val = self.gp0_command[0];
 
         let x = (val & 0x7ff) as u16;
@@ -1215,7 +1215,7 @@ impl Gpu {
         let y = ((y << 5) as i16) >> 5;
 
         self.drawing_offset = (x, y);
-        //self.renderer.set_draw_offset(x, y);
+        renderer.set_draw_offset(x, y);
     }
 
     /// GP0(0xE6): Set Mask Bit Setting
