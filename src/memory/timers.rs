@@ -332,7 +332,7 @@ impl Timer {
     /// source or synchronization
     pub fn needs_gpu(&self) -> bool {
         if self.use_sync {
-            println!("Sync mode not supported!");
+            warn!("Sync mode not supported!");
         }
 
         self.clock_source.clock(self.instance).needs_gpu()
