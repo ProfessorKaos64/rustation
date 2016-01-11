@@ -102,6 +102,8 @@ pub struct Gpu {
     /// When drawing polylines we must keep track of the previous
     /// vertex position and color
     polyline_prev: ([i16; 2], [u8; 3]),
+    /// Image buffer for texture uploads
+    load_buffer: ImageBuffer,
 }
 
 impl Gpu {
@@ -152,7 +154,7 @@ impl Gpu {
             standard: standard,
             read_word: 0,
             polyline_prev: ([0; 2], [0; 3]),
-            //load_buffer: LoadBuffer::null(),
+            load_buffer: ImageBuffer::new(),
         }
     }
 
@@ -510,27 +512,6 @@ impl Gpu {
             // certain cases, for instance for image load commands.
             self.gp0_handler = Gpu::gp0_handle_command;
             (self.gp0_attributes.callback)(self, renderer);
-        }
-    }
-
-    /// GP0 handler method: handle image load
-    fn gp0_handle_image_load(&mut self, _: &mut Renderer, word: u32) {
-        //self.load_buffer.push_word(word);
-
-        self.gp0_words_remaining -= 1;
-
-        if self.gp0_words_remaining == 0 {
-            //let mut load_buffer = LoadBuffer::null();
-
-            // We are going to consume the LoadBuffer, we need to move
-            // out of `self`
-            // ::std::mem::swap(&mut self.load_buffer,
-            //                  &mut load_buffer);
-
-            //self.renderer.load_image(load_buffer);
-
-            // We're done, wait for the next command
-            self.gp0_handler = Gpu::gp0_handle_command;
         }
     }
 
@@ -1126,8 +1107,7 @@ impl Gpu {
         self.gp0_words_remaining = imgsize / 2;
 
         if self.gp0_words_remaining > 0 {
-            // self.load_buffer = LoadBuffer::new(x, y,
-            //                                    width as u16, height as u16);
+            self.load_buffer.reset(x, y, width as u16, height as u16);
 
             // Use a custom GP0 handler to handle the GP0 image load
             self.gp0_handler = Gpu::gp0_handle_image_load;
@@ -1135,6 +1115,22 @@ impl Gpu {
             warn!("GPU: 0-sized image load");
         }
 
+    }
+
+    /// GP0 handler method: handle image load
+    fn gp0_handle_image_load(&mut self, renderer: &mut Renderer, word: u32) {
+        self.load_buffer.push_gp0_word(word);
+
+        self.gp0_words_remaining -= 1;
+
+        if self.gp0_words_remaining == 0 {
+            renderer.load_image(self.load_buffer.top_left(),
+                                self.load_buffer.resolution(),
+                                self.load_buffer.buffer());
+
+            // We're done, wait for the next command
+            self.gp0_handler = Gpu::gp0_handle_command;
+        }
     }
 
     /// GP0(0xC0): Image Store
@@ -1702,11 +1698,70 @@ fn gp0_texture_coordinates(gp0: u32) -> [u16; 2] {
 }
 
 /// Return true if the word is a polyline end maker. Most games use
-/// `0x55555555` but the GPU only tests for `0x5XXX5XXX` (so
-/// `0x51235abc` would be a valid marker for instance).
+/// `0x55555555` but the GPU looks for `0x5XXX5XXX` (so `0x51235abc`
+/// would be a valid marker for instance).
 fn is_polyline_end_marker(val: u32) -> bool {
     val & 0xf000f000 == 0x50005000
 }
+
+/// Buffer holding a portion of the VRAM while it's being transfered
+struct ImageBuffer {
+    /// Coordinates of the top-left corner in VRAM
+    top_left: (u16, u16),
+    /// Resolution of the rectangle
+    resolution: (u16, u16),
+    /// Current write position in the buffer
+    index: u32,
+    /// Pixel buffer. The maximum size is the entire VRAM resolution.
+    buffer: Box<[u16; 1024 * 512]>,
+}
+
+impl ImageBuffer {
+    fn new() -> ImageBuffer {
+        ImageBuffer {
+            top_left: (0, 0),
+            resolution: (0, 0),
+            index: 0,
+            buffer: Box::new([0; 1024 * 512]),
+        }
+    }
+
+    fn top_left(&self) -> (u16, u16) {
+        self.top_left
+    }
+
+    fn resolution(&self) -> (u16, u16) {
+        self.resolution
+    }
+
+
+    fn buffer(&self) -> &[u16] {
+        // I don't use `index` because it can potentially point one
+        // past the end of the buffer if the image has an odd number
+        // of pixels.
+        let len = self.resolution.0 as usize * self.resolution.1 as usize;
+
+        &self.buffer[0..len]
+    }
+
+    fn reset(&mut self, x: u16, y: u16, width: u16, height: u16) {
+        self.top_left = (x, y);
+        self.resolution = (width, height);
+        self.index = 0;
+    }
+
+    fn push_gp0_word(&mut self, word: u32) {
+        // No bound checks: I trust the caller not to send more
+        // pixels than fits the buffer. I already have a state
+        // machine with `gp0_words_remaining` in `Gpu`, I don't want
+        // to duplicate it here.
+        self.buffer[self.index as usize] = word as u16;
+        self.index += 1;
+        self.buffer[self.index as usize] = (word >> 16) as u16;
+        self.index += 2;
+    }
+}
+
 
 // Width of the VRAM in 16bit pixels
 const VRAM_WIDTH_PIXELS: u16 = 1024;

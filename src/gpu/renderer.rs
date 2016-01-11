@@ -4,6 +4,11 @@ pub trait Renderer {
     fn push_line(&mut self, &PrimitiveAttributes, &[Vertex; 2]);
     fn push_triangle(&mut self, &PrimitiveAttributes, &[Vertex; 3]);
     fn push_quad(&mut self, &PrimitiveAttributes, &[Vertex; 4]);
+
+    fn load_image(&mut self,
+                  top_left: (u16, u16),
+                  resolution: (u16, u16),
+                  pixel_buffer: &[u16]);
 }
 
 pub struct Vertex {
