@@ -1158,31 +1158,31 @@ impl Gpu {
     }
 
     /// GP0(0xE3): Set Drawing Area top left
-    fn gp0_drawing_area_top_left(&mut self, _: &mut Renderer) {
+    fn gp0_drawing_area_top_left(&mut self, renderer: &mut Renderer) {
         let val = self.gp0_command[0];
 
         self.drawing_area_top = ((val >> 10) & 0x3ff) as u16;
         self.drawing_area_left = (val & 0x3ff) as u16;
 
-        self.update_drawing_area();
+        self.update_draw_area(renderer);
     }
 
     /// GP0(0xE4): Set Drawing Area bottom right
-    fn gp0_drawing_area_bottom_right(&mut self, _: &mut Renderer) {
+    fn gp0_drawing_area_bottom_right(&mut self, renderer: &mut Renderer) {
         let val = self.gp0_command[0];
 
         self.drawing_area_bottom = ((val >> 10) & 0x3ff) as u16;
         self.drawing_area_right = (val & 0x3ff) as u16;
 
-        self.update_drawing_area();
+        self.update_draw_area(renderer);
     }
 
     // Called when the drawing area changes to notify the renderer
-    fn update_drawing_area(&mut self) {
-        //self.renderer.set_drawing_area(self.drawing_area_left,
-                                       //self.drawing_area_top,
-                                       //self.drawing_area_right,
-                                       //self.drawing_area_bottom);
+    fn update_draw_area(&mut self, renderer: &mut Renderer) {
+        renderer.set_draw_area((self.drawing_area_left,
+                                self.drawing_area_top),
+                               (self.drawing_area_right,
+                                self.drawing_area_bottom));
     }
 
     /// GP0(0xE5): Set Drawing Offset

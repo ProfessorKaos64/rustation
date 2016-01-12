@@ -1,5 +1,6 @@
 pub trait Renderer {
     fn set_draw_offset(&mut self, x: i16, y: i16);
+    fn set_draw_area(&mut self, top_left: (u16, u16), resolution: (u16, u16));
 
     fn push_line(&mut self, &PrimitiveAttributes, &[Vertex; 2]);
     fn push_triangle(&mut self, &PrimitiveAttributes, &[Vertex; 3]);
