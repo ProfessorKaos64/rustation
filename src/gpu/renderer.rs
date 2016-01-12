@@ -14,6 +14,7 @@ pub trait Renderer {
 pub struct Vertex {
     pub position: [i16; 2],
     pub color: [u8; 3],
+    pub texture_coord: [u16; 2],
 }
 
 impl Vertex {
@@ -21,15 +22,18 @@ impl Vertex {
         Vertex {
             position: position,
             color: color,
+            // Unused
+            texture_coord: [0, 0],
         }
     }
 
     pub fn new_textured(position: [i16; 2],
                         color: [u8; 3],
-                        _texture_coord: [u16; 2]) -> Vertex {
+                        texture_coord: [u16; 2]) -> Vertex {
         Vertex {
             position: position,
             color: color,
+            texture_coord: texture_coord,
         }
     }
 }

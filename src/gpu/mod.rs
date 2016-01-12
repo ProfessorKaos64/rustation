@@ -10,8 +10,6 @@ use self::renderer::{BlendMode, SemiTransparencyMode, TextureDepth};
 pub mod renderer;
 
 pub struct Gpu {
-    /// OpenGL renderer
-    //renderer: Renderer,
     /// Draw mode for rectangles, dithering enable and a few other
     /// things
     draw_mode: u16,
@@ -1758,15 +1756,15 @@ impl ImageBuffer {
         self.buffer[self.index as usize] = word as u16;
         self.index += 1;
         self.buffer[self.index as usize] = (word >> 16) as u16;
-        self.index += 2;
+        self.index += 1;
     }
 }
 
 
 // Width of the VRAM in 16bit pixels
-const VRAM_WIDTH_PIXELS: u16 = 1024;
+pub const VRAM_WIDTH_PIXELS: u16 = 1024;
 // Height of the VRAM in lines
-const VRAM_HEIGHT: u16 = 512;
+pub const VRAM_HEIGHT: u16 = 512;
 
 /// The are a few hardware differences between PAL and NTSC consoles,
 /// for instance the pixelclock runs slightly slower on PAL consoles.
