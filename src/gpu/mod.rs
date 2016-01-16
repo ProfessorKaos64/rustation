@@ -405,7 +405,7 @@ impl Gpu {
 
         match offset {
             0 => self.gp0(renderer, val),
-            4 => self.gp1(shared, val, timers),
+            4 => self.gp1(shared, renderer, val, timers),
             _ => unreachable!(),
         }
     }
@@ -1212,6 +1212,7 @@ impl Gpu {
     /// Handle writes to the GP1 command register
     pub fn gp1(&mut self,
                shared: &mut SharedState,
+               renderer: &mut Renderer,
                val: u32,
                timers: &mut Timers) {
 
@@ -1220,7 +1221,9 @@ impl Gpu {
         match opcode {
             0x00 => {
                 self.gp1_reset(shared);
+
                 timers.video_timings_changed(shared, self);
+                self.update_display_mode(renderer);
             },
             0x01 => self.gp1_reset_command_buffer(),
             0x02 => self.gp1_acknowledge_irq(),
@@ -1233,9 +1236,19 @@ impl Gpu {
             0x08 => {
                 self.gp1_display_mode(shared, val);
                 timers.video_timings_changed(shared, self);
+                self.update_display_mode(renderer);
             }
             _    => panic!("Unhandled GP1 command {:08x}", val),
         }
+    }
+
+    fn update_display_mode(&self, renderer: &mut Renderer) {
+        let top_left = (self.display_vram_x_start, self.display_vram_y_start);
+        let resolution = (self.hres.width(), self.vres.height());
+
+        let depth_24bpp = self.display_depth == DisplayDepth::D24Bits;
+
+        renderer.set_display_mode(top_left, resolution, depth_24bpp);
     }
 
     /// GP1(0x00): Soft Reset
@@ -1525,7 +1538,7 @@ enum VMode {
 }
 
 /// Display area color depth
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy, PartialEq, Eq)]
 enum DisplayDepth {
     /// 15 bits per pixel
     D15Bits = 0,

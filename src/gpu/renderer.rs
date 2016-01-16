@@ -2,6 +2,11 @@ pub trait Renderer {
     fn set_draw_offset(&mut self, x: i16, y: i16);
     fn set_draw_area(&mut self, top_left: (u16, u16), resolution: (u16, u16));
 
+    fn set_display_mode(&mut self,
+                        top_left: (u16, u16),
+                        resolution: (u16, u16),
+                        depth_24bpp: bool);
+
     fn push_line(&mut self, &PrimitiveAttributes, &[Vertex; 2]);
     fn push_triangle(&mut self, &PrimitiveAttributes, &[Vertex; 3]);
     fn push_quad(&mut self, &PrimitiveAttributes, &[Vertex; 4]);
