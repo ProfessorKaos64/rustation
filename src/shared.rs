@@ -37,8 +37,14 @@ impl SharedState {
     }
 
     pub fn new_frame(&mut self) {
-        // It will wrap in a little more than 2 years at 60Hz, better
-        // be careful
+        // It will wrap in a little more than 2 years at 60Hz
         self.frame = self.frame.wrapping_add(1);
+    }
+
+    /// Cleanup the shared state except for the debugger
+    pub fn reset(&mut self) {
+        self.tk = TimeKeeper::new();
+        self.irq_state = InterruptState::new();
+        self.frame = 0;
     }
 }
