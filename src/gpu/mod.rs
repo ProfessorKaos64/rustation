@@ -94,7 +94,7 @@ pub struct Gpu {
     /// Current GPU clock tick for the current line
     display_line_tick: u16,
     /// Video standard (PAL or NTSC)
-    standard: VideoStandard,
+    standard: VideoClock,
     /// Next word returned by the GPUREAD command
     read_word: u32,
     /// When drawing polylines we must keep track of the previous
@@ -105,7 +105,7 @@ pub struct Gpu {
 }
 
 impl Gpu {
-    pub fn new(standard: VideoStandard) -> Gpu {
+    pub fn new(standard: VideoClock) -> Gpu {
         let dummy_gp0 =
             Gp0Attributes::new(Gpu::gp0_nop, false, BlendMode::None, false);
 
@@ -176,8 +176,8 @@ impl Gpu {
         // GPU clock in Hz
         let gpu_clock =
             match self.standard {
-                VideoStandard::Ntsc => 53_690_000.,
-                VideoStandard::Pal  => 53_200_000.,
+                VideoClock::Ntsc => 53_690_000.,
+                VideoClock::Pal  => 53_222_000.,
             };
 
         // CPU clock in Hz
@@ -1780,9 +1780,9 @@ pub const VRAM_WIDTH_PIXELS: u16 = 1024;
 pub const VRAM_HEIGHT: u16 = 512;
 
 /// The are a few hardware differences between PAL and NTSC consoles,
-/// for instance the pixelclock runs slightly slower on PAL consoles.
+/// in particular the pixelclock runs slightly slower on PAL consoles.
 #[derive(Clone,Copy)]
-pub enum VideoStandard {
+pub enum VideoClock {
     Ntsc,
     Pal,
 }
