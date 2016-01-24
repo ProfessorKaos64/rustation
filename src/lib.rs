@@ -8,10 +8,11 @@ pub mod bios;
 pub mod memory;
 pub mod cpu;
 pub mod shared;
+pub mod padmemcard;
+
 
 mod interrupt;
 mod timekeeper;
-mod padmemcard;
 mod spu;
 mod debugger;
 

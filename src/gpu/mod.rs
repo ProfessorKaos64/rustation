@@ -731,6 +731,9 @@ impl Gpu {
             bottom = 0x200;
         }
 
+        let width = right - left;
+        let height = bottom - top;
+
         renderer.fill_rect(color,
                            (left, top),
                            (width, height));
