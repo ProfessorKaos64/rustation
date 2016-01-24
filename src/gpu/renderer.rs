@@ -1,6 +1,6 @@
 pub trait Renderer {
     fn set_draw_offset(&mut self, x: i16, y: i16);
-    fn set_draw_area(&mut self, top_left: (u16, u16), resolution: (u16, u16));
+    fn set_draw_area(&mut self, top_left: (u16, u16), dimensions: (u16, u16));
 
     fn set_display_mode(&mut self,
                         top_left: (u16, u16),
@@ -11,9 +11,14 @@ pub trait Renderer {
     fn push_triangle(&mut self, &PrimitiveAttributes, &[Vertex; 3]);
     fn push_quad(&mut self, &PrimitiveAttributes, &[Vertex; 4]);
 
+    fn fill_rect(&mut self,
+                 color: [u8; 3],
+                 top_left: (u16, u16),
+                 dimensions: (u16, u16));
+
     fn load_image(&mut self,
                   top_left: (u16, u16),
-                  resolution: (u16, u16),
+                  dimensions: (u16, u16),
                   pixel_buffer: &[u16]);
 }
 

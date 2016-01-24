@@ -694,7 +694,7 @@ impl Gpu {
 
     /// GP0(0x02): Fill rectangle
     /// *Not* affected by mask setting unlike other rect commands
-    fn gp0_fill_rect(&mut self, _: &mut Renderer) {
+    fn gp0_fill_rect(&mut self, renderer: &mut Renderer) {
         let top_left = gp0_position(self.gp0_command[1]);
         let size = gp0_position(self.gp0_command[2]);
 
@@ -731,9 +731,9 @@ impl Gpu {
             bottom = 0x200;
         }
 
-        // self.renderer.fill_rect(color,
-        //                         top, left,
-        //                         bottom, right);
+        renderer.fill_rect(color,
+                           (left, top),
+                           (width, height));
     }
 
     /// Gp0(0x80): Copy rectangle
