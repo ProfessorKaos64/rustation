@@ -1,7 +1,6 @@
-// XXX Temporary hack to avoid getting spammed with warnings
-extern crate shaman;
 #[macro_use]
 extern crate log;
+extern crate shaman;
 
 pub mod gpu;
 pub mod cdrom;
